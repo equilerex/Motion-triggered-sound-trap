@@ -15,7 +15,7 @@
 #define ledPin 12
   
 int clipLength = 20000;
-int delayBetweenClips = 20000;
+int delayBetweenClips = 2000;
 int buttonPressLength = 100;
 
 
@@ -24,8 +24,6 @@ bool playInProgress = true;
 bool firstRun = true;  
 int motionDetected = 0;
 int realLength = clipLength - buttonPressLength;
-int firstRunLength = clipLength - (buttonPressLength*2);
-
 
 void pressPlayButton() {      
   //Serial.print("\n pressPlayButton");          
@@ -43,7 +41,7 @@ void pressBackButton() {
   digitalWrite(backPin, HIGH);   // +5v to MOSFET gate
   delay(buttonPressLength);               // 
   
-  Serial.print("\n pressPlayButton"); 
+  Serial.print("\n pressbackButton"); 
   digitalWrite(backPin, LOW);    // 0v to MOSFET gate 
 } 
 
@@ -52,64 +50,55 @@ void setup() {
   Serial.begin(115200);      
 
   
-  playInProgress = true;        
-                           
-  // Soft startup to ease the flow of electrons.
-  delay(1000);      
-      Serial.print(realLength); 
-
-  Serial.print("\n ss");       
-      
-  Serial.print("\n ss");       
-      Serial.print(firstRunLength);    
-  // initialize the LED pin as an output:
-  pinMode(backPin, OUTPUT);
-  pinMode(playPin, OUTPUT);
-  pinMode(ledPin, OUTPUT);
-
-  delay(4000);      
- // Try to sync up with the audio module
-  pressBackButton();
-  delay(400);     
-  pressBackButton();
-  delay(400);     
-  pressBackButton();
-  delay(100);     
-  pressPlayButton();
-  Serial.print("\n boot stop"); 
-  delay(3000);       
-  playInProgress = false;   
+      // initialize the LED pin as an output:
+      pinMode(backPin, OUTPUT);
+      pinMode(playPin, OUTPUT);
+      pinMode(ledPin, OUTPUT); 
 }
 
 void loop() {
-  motionDetected = digitalRead(motionPin);  // read input value
-    //Serial.print(motionDetected);    
-  if (motionDetected == HIGH && playInProgress == false) { // check if motion detected and nothing is playing
-    Serial.print("\n motionDetected"); 
-    Serial.print(motionDetected);      
-    digitalWrite(ledPin, HIGH);   // +5v to MOSFET gate
-    playInProgress = true; // lock the session
+    if (firstRun == true) { 
+      playInProgress = true; 
+      firstRun = false;                 
+      // Soft startup to ease the flow of electrons.
+      delay(1000);      
+      Serial.print(realLength); 
+      Serial.print("\n");       
+      delay(4000);       
+      digitalWrite(ledPin, HIGH);   // +5v to MOSFET gate
+      pressBackButton(); 
+      Serial.print("\n wait clip length   ");      
+      delay(realLength);   
+      pressPlayButton();   
+      Serial.print("\n stop    ");   
+      digitalWrite(ledPin, LOW);   // +5v to MOSFET gate
+      Serial.print("\n wait delay   "); 
+      delay(3000);  // add a buffer so the trap wont fire too often
     
-    Serial.print("\n play  ");    
-    pressPlayButton();
-    Serial.print("\n wait clip length   ");    
-    if (firstRun == true) {
-      firstRun = false;
-      delay(firstRunLength);   
-    } else {
-       delay(realLength);   
-    }
-    digitalWrite(ledPin, LOW);   // +5v to MOSFET gate
-    Serial.print("\n stop    "); 
-    pressPlayButton();   
-    Serial.print("\n wait delay   "); 
-    delay(delayBetweenClips);  // add a buffer so the trap wont fire too often
-
-    playInProgress = false; // allow for new 
-  } else {
-      //Serial.println("no motion or one in progress"); 
-  }
-  // read the state of the pushbutton value:
- // buttonState = digitalRead(buttonPin);
+      playInProgress = false; // allow for new 
+    } else { 
+     motionDetected = digitalRead(motionPin);  // read input value
+        //Serial.print(motionDetected);    
+      if (motionDetected == HIGH && playInProgress == false) { // check if motion detected and nothing is playing
+        playInProgress = true; // lock the session
+        Serial.print("\n motionDetected"); 
+        digitalWrite(ledPin, HIGH);   // +5v to MOSFET gate
+        pressPlayButton();
+        Serial.print("\n wait clip length   ");      
+        delay(realLength);   
+    
+        Serial.print("\n stop    "); 
+        pressPlayButton();   
+        
+        digitalWrite(ledPin, LOW);   // +5v to MOSFET gate
+        Serial.print("\n wait delay   "); 
+        delay(delayBetweenClips);  // add a buffer so the trap wont fire too often
+    
+        playInProgress = false; // allow for new 
+      } else {
+          //Serial.println("no motion or one in progress"); 
+      }  
+      
+    } 
 
 }
