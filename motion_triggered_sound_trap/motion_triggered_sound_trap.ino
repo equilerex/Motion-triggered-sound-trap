@@ -1,104 +1,118 @@
 /*
-  Button
-
+  Motion triggered sound trap
   
   created 2021
   by Joosep koivistik   <http://www.koivistik.com>
+  note: c++ by a javascript developer, excuse my lack of proper patterns :P
  
 */
 
-// constants won't change. They're used here to set pin numbers:
-#define buttonPin 2     // the number of the pushbutton pin
-#define backPin  8      // the number of the LED pin
-#define playPin  6      // the number of the LED pin                                     // Data pin to connect to the strip.
-#define motionPin 10  
-#define ledPin 12
-  
-int clipLength = 20000;
-int delayBetweenClips = 2000;
-int buttonPressLength = 100;
+// Pin definitions
+#define backPin  8      // "back" button
+#define playPin  6      // "play" button
+#define motionPin 10    // Motion sensor
+#define ledPin 12       // LED mosfet
+
+// sound clip settings 
+int clipLength = 20000;  // each audio clip should be exactly this length in milliseconds
+int delayBetweenClips = 2000; // delay in between clips to avoid triggering too often
+int buttonPressLength = 100; // length of the push button press on the soundcard (might need tweaking dependent on the sound card)
 
 
-// variables will change: buttonPressLength
-bool playInProgress = true;  
+
+
+
+// runtime variables
 bool firstRun = true;  
+bool playInProgress = true;  
 int motionDetected = 0;
-int realLength = clipLength - buttonPressLength;
-
-void pressPlayButton() {      
-  //Serial.print("\n pressPlayButton");          
-  digitalWrite(playPin, HIGH);   // +5v to MOSFET gate
-  
-  delay(buttonPressLength);               // 
-  
-  Serial.print("\n pressPlayButton"); 
-  digitalWrite(playPin, LOW);    // 0v to MOSFET gate 
-}
-
-void pressBackButton() {      
-  //Serial.print("\n pressBackButton");        
-         
-  digitalWrite(backPin, HIGH);   // +5v to MOSFET gate
-  delay(buttonPressLength);               // 
-  
-  Serial.print("\n pressbackButton"); 
-  digitalWrite(backPin, LOW);    // 0v to MOSFET gate 
-} 
+int realLength = clipLength - buttonPressLength; 
 
 void setup() {
-    // Initialize serial port for debugging.
+  // Initialize serial port for debugging.
   Serial.begin(115200);      
-
   
-      // initialize the LED pin as an output:
-      pinMode(backPin, OUTPUT);
-      pinMode(playPin, OUTPUT);
-      pinMode(ledPin, OUTPUT); 
+  // initialize the LED pin as an output:
+  pinMode(backPin, OUTPUT);
+  pinMode(playPin, OUTPUT);
+  pinMode(ledPin, OUTPUT); 
 }
 
 void loop() {
-    if (firstRun == true) { 
-      playInProgress = true; 
-      firstRun = false;                 
-      // Soft startup to ease the flow of electrons.
+    // on the very first run, we want to sync the arduino and the sound card's starting point.
+    if (firstRun == true && playInProgress == false) { 
+      playInProgress = true;        
+      // wait for the sound card to boot
       delay(1000);      
+      Serial.print("\n Play length:");     
       Serial.print(realLength); 
       Serial.print("\n");       
       delay(4000);       
-      digitalWrite(ledPin, HIGH);   // +5v to MOSFET gate
+
+      // light up the led
+      digitalWrite(ledPin, HIGH); 
+
+      // we press back button and let it play for the length of the track to make sure we are exactly at the beginning of a fresh track
       pressBackButton(); 
-      Serial.print("\n wait clip length   ");      
+      Serial.print("\n wait clip length");      
       delay(realLength);   
       pressPlayButton();   
-      Serial.print("\n stop    ");   
-      digitalWrite(ledPin, LOW);   // +5v to MOSFET gate
-      Serial.print("\n wait delay   "); 
-      delay(3000);  // add a buffer so the trap wont fire too often
-    
-      playInProgress = false; // allow for new 
-    } else { 
-     motionDetected = digitalRead(motionPin);  // read input value
-        //Serial.print(motionDetected);    
-      if (motionDetected == HIGH && playInProgress == false) { // check if motion detected and nothing is playing
-        playInProgress = true; // lock the session
-        Serial.print("\n motionDetected"); 
-        digitalWrite(ledPin, HIGH);   // +5v to MOSFET gate
-        pressPlayButton();
-        Serial.print("\n wait clip length   ");      
-        delay(realLength);   
-    
-        Serial.print("\n stop    "); 
-        pressPlayButton();   
-        
-        digitalWrite(ledPin, LOW);   // +5v to MOSFET gate
-        Serial.print("\n wait delay   "); 
-        delay(delayBetweenClips);  // add a buffer so the trap wont fire too often
-    
-        playInProgress = false; // allow for new 
-      } else {
-          //Serial.println("no motion or one in progress"); 
-      }  
+      Serial.print("\n first track prepped and ready to play");   
+      digitalWrite(ledPin, LOW);
       
+       // add a buffer 
+      delay(3000); 
+    
+      firstRun = false;          
+      playInProgress = false;
+      Serial.print("\n Boot complete   "); 
+    }
+
+    motionDetected = digitalRead(motionPin);
+   
+    // play a fresh track
+    if (firstRun == false && playInProgress == false && motionDetected == HIGH) { 
+      Serial.print("\n Motion Detected");  
+
+       // lock the session
+      playInProgress = true;
+
+      // light it up
+      digitalWrite(ledPin, HIGH);
+
+      // start the track
+      pressPlayButton();
+
+      // let it play for the length of the clip
+      Serial.print("\n wait clip length   ");      
+      delay(realLength);    
+
+      // stop the track
+      pressPlayButton();   
+
+      // lights off
+      digitalWrite(ledPin, LOW); 
+
+      // add a buffer so the trap wont fire too often
+      Serial.print("\n wait delay"); 
+      delay(delayBetweenClips);  
+
+      // unlock session
+      playInProgress = false;
     } 
 
 }
+
+void pressPlayButton() {           
+  digitalWrite(playPin, HIGH);
+  delay(buttonPressLength);
+  digitalWrite(playPin, LOW);
+  Serial.print("\n Press Play Button"); 
+}
+
+void pressBackButton() {          
+  digitalWrite(backPin, HIGH);
+  delay(buttonPressLength);
+  digitalWrite(backPin, LOW);
+  Serial.print("\n press back Button"); 
+} 
